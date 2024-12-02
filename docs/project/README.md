@@ -4,26 +4,8 @@
 
 ## Виконали
 
-*студент 2-го курсу, групи ІМ-34* **Євген БУТКЕВИЧ**\
+*студент 2-го курсу, групи ІМ-34* **Євгеній БУТКЕВИЧ**\
 Telegram: [@de_evgenko](https://t.me/de_evgenko)
-
-*студент 2-го курсу, групи ІМ-34* **Микола ІГЛАЙКІН**\
-Telegram: [@niglaykin](https://t.me/niglaykin)
-
-*студентка 2-го курсу, групи ІМ-34* **Карина КОРЧОВА**\
-Telegram: [@arosyri](https://t.me/arosyri)
-
-*студент 2-го курсу, групи ІМ-34* **Максим КРУЛЕВСЬКИЙ**\
-Telegram: [@MaksimkaMalutka](https://t.me/MaksimkaMalutka)
-
-*студент 2-го курсу, групи ІМ-34* **Максим НЕТЯГА**\
-Telegram: [@maxnetyaga](https://t.me/maxnetyaga)
-
-*студентка 2-го курсу, групи ІМ-34* **Вероніка ОСТАПОВА**\
-Telegram: [@VeronikaNuar](https://t.me/VeronikaNuar)
-
-*студент 2-го курсу, групи ІМ-34* **Матвій ШПИРУК**\
-Telegram: [@pqpj5](https://t.me/pqpj5)
 
 ## Керівник
 
