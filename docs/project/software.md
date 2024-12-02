@@ -253,4 +253,730 @@ INSERT INTO `Grant` (`projectId`, `userId`) VALUES
 COMMIT;
 ```
 ## RESTfull сервіс для управління даними
+## Entities
 
+### Team Entity
+```java
+package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "Team")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Team {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    private List<Member> members = new ArrayList<>();
+
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    private List<Project> projects = new ArrayList<>();
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+```
+### Project Entity
+```java
+package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "Project")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Project {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String name;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "ownerId", nullable = false)
+    private User owner;
+
+    @ManyToOne
+    @JoinColumn(name = "teamId", nullable = false)
+    private Team team;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "project")
+    private List<Task> tasks = new ArrayList<>();
+
+    @OneToMany(mappedBy = "project")
+    private List<Artefact> artefacts = new ArrayList<>();
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
+    private List<Grant> grants;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+```
+### Task Entity
+```java
+package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "Task")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Task {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "assignedTo")
+    private User assignedTo;
+
+    @ManyToOne
+    @JoinColumn(name = "projectId", nullable = false)
+    private Project project;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskStatus status = TaskStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskPriority priority = TaskPriority.MEDIUM;
+
+    private LocalDateTime dueDate;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    public enum TaskStatus {
+        PENDING, IN_PROGRESS, COMPLETED, ON_HOLD, CANCELLED
+    }
+
+    public enum TaskPriority {
+        LOW, MEDIUM, HIGH
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+
+```
+### Team Service Implementaion
+```java
+package com.example.DB.Service.impl;
+
+import com.example.DB.Service.TeamService;
+import com.example.DB.dto.TeamDto;
+import com.example.DB.entity.Team;
+import com.example.DB.entity.Member;
+import com.example.DB.entity.Project;
+import com.example.DB.repository.TeamRepository;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+@RequiredArgsConstructor
+public class TeamServiceImpl implements TeamService {
+    private final TeamRepository teamRepository;
+
+    public TeamDto createTeam() {
+        Team team = new Team();
+        Team savedTeam = teamRepository.save(team);
+        return convertToDto(savedTeam);
+    }
+
+    public TeamDto getTeamById(Long id) {
+        Team team = teamRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Team not found"));
+        return convertToDto(team);
+    }
+
+    public List<TeamDto> getAllTeams() {
+        return teamRepository.findAll().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<TeamDto> getTeamsByMember(Long userId) {
+        return teamRepository.findByMembersUserId(userId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<TeamDto> getTeamsByProject(Long projectId) {
+        return teamRepository.findByProjectsId(projectId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public void deleteTeam(Long id) {
+        if (!teamRepository.existsById(id)) {
+            throw new RuntimeException("Team not found");
+        }
+        teamRepository.deleteById(id);
+    }
+
+    private TeamDto convertToDto(Team team) {
+        return new TeamDto(
+                team.getId(),
+                team.getCreatedAt(),
+                team.getMembers() != null ?
+                        team.getMembers().stream().map(Member::getId).collect(Collectors.toList()) :
+                        new ArrayList<>(),
+                team.getProjects() != null ?
+                        team.getProjects().stream().map(Project::getId).collect(Collectors.toList()) :
+                        new ArrayList<>()
+        );
+    }
+}
+```
+### Project Service Implementaion
+```java
+package com.example.DB.Service.impl;
+
+import com.example.DB.Service.ProjectService;
+import com.example.DB.dto.ProjectDto;
+import com.example.DB.entity.Project;
+import com.example.DB.entity.Team;
+import com.example.DB.entity.User;
+import com.example.DB.entity.Task;
+import com.example.DB.entity.Artefact;
+import com.example.DB.repository.ProjectRepository;
+import com.example.DB.repository.TeamRepository;
+import com.example.DB.repository.UserRepository;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+@RequiredArgsConstructor
+public class ProjectServiceImpl implements ProjectService {
+    private final ProjectRepository projectRepository;
+    private final UserRepository userRepository;
+    private final TeamRepository teamRepository;
+
+    public ProjectDto createProject(ProjectDto projectDto) {
+        Project project = new Project();
+        project.setName(projectDto.getName());
+        project.setDescription(projectDto.getDescription());
+        project.setOwner(userRepository.findById(projectDto.getOwnerId())
+                .orElseThrow(() -> new RuntimeException("Owner not found")));
+        project.setTeam(teamRepository.findById(projectDto.getTeamId())
+                .orElseThrow(() -> new RuntimeException("Team not found")));
+        project.setTasks(new ArrayList<>());
+        project.setArtefacts(new ArrayList<>());
+        project.setCreatedAt(LocalDateTime.now());
+
+        return convertToDto(projectRepository.save(project));
+    }
+
+    public ProjectDto getProjectById(Long id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+        return convertToDto(project);
+    }
+
+    public List<ProjectDto> getAllProjects() {
+        return projectRepository.findAll().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<ProjectDto> getProjectsByOwner(Long ownerId) {
+        return projectRepository.findByOwnerId(ownerId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public ProjectDto updateProject(Long id, ProjectDto projectDto) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        project.setName(projectDto.getName());
+        project.setDescription(projectDto.getDescription());
+
+        Project updatedProject = projectRepository.save(project);
+        return convertToDto(updatedProject);
+    }
+
+    public void deleteProject(Long id) {
+        if (!projectRepository.existsById(id)) {
+            throw new RuntimeException("Project not found");
+        }
+        projectRepository.deleteById(id);
+    }
+
+    private ProjectDto convertToDto(Project project) {
+        return new ProjectDto(
+                project.getId(),
+                project.getName(),
+                project.getDescription(),
+                project.getOwner().getId(),
+                project.getTeam().getId(),
+                project.getCreatedAt(),
+                project.getTasks().stream().map(Task::getId).collect(Collectors.toList()),
+                project.getArtefacts().stream().map(Artefact::getId).collect(Collectors.toList())
+        );
+    }
+}
+```
+### Task Service Implementaion
+```java
+package com.example.DB.Service.impl;
+
+import com.example.DB.Service.TaskService;
+import com.example.DB.dto.TaskDto;
+import com.example.DB.entity.Project;
+import com.example.DB.entity.Task;
+import com.example.DB.entity.User;
+import com.example.DB.repository.ProjectRepository;
+import com.example.DB.repository.TaskRepository;
+import com.example.DB.repository.UserRepository;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+@RequiredArgsConstructor
+public class TaskServiceImpl implements TaskService {
+    private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
+
+    public TaskDto createTask(TaskDto taskDto) {
+        Project project = projectRepository.findById(taskDto.getProjectId())
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        Task task = new Task();
+        task.setTitle(taskDto.getTitle());
+        task.setDescription(taskDto.getDescription());
+        task.setProject(project);
+        task.setStatus(taskDto.getStatus());
+        task.setPriority(taskDto.getPriority());
+        task.setDueDate(taskDto.getDueDate());
+
+        if (taskDto.getAssignedToId() != null) {
+            User assignee = userRepository.findById(taskDto.getAssignedToId())
+                    .orElseThrow(() -> new RuntimeException("Assignee not found"));
+            task.setAssignedTo(assignee);
+        }
+
+        Task savedTask = taskRepository.save(task);
+        return convertToDto(savedTask);
+    }
+
+    public TaskDto getTaskById(Long id) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+        return convertToDto(task);
+    }
+
+    public List<TaskDto> getProjectTasks(Long projectId) {
+        return taskRepository.findByProjectId(projectId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<TaskDto> getUserTasks(Long userId) {
+        return taskRepository.findByAssignedToId(userId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public TaskDto updateTaskStatus(Long id, Task.TaskStatus status) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+        task.setStatus(status);
+        return convertToDto(taskRepository.save(task));
+    }
+
+    public TaskDto assignTask(Long id, Long userId) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+        User assignee = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        task.setAssignedTo(assignee);
+        return convertToDto(taskRepository.save(task));
+    }
+
+    private TaskDto convertToDto(Task task) {
+        return new TaskDto(
+                task.getId(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getAssignedTo() != null ? task.getAssignedTo().getId() : null,
+                task.getProject().getId(),
+                task.getStatus(),
+                task.getPriority(),
+                task.getDueDate(),
+                task.getCreatedAt()
+        );
+    }
+}
+```
+### Team Controller
+```java
+package com.example.DB.controller;
+
+import com.example.DB.Service.TeamService;
+import com.example.DB.dto.TeamDto;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/teams")
+@RequiredArgsConstructor
+public class TeamController {
+    private final TeamService teamService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public TeamDto createTeam() {
+        return teamService.createTeam();
+    }
+
+    @GetMapping("/{id}")
+    public TeamDto getTeam(@PathVariable Long id) {
+        return teamService.getTeamById(id);
+    }
+
+    @GetMapping
+    public List<TeamDto> getAllTeams() {
+        return teamService.getAllTeams();
+    }
+
+    @GetMapping("/member/{userId}")
+    public List<TeamDto> getTeamsByMember(@PathVariable Long userId) {
+        return teamService.getTeamsByMember(userId);
+    }
+
+    @GetMapping("/project/{projectId}")
+    public List<TeamDto> getTeamsByProject(@PathVariable Long projectId) {
+        return teamService.getTeamsByProject(projectId);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteTeam(@PathVariable Long id) {
+        teamService.deleteTeam(id);
+    }
+}
+
+```
+### Project Controller
+```java
+package com.example.DB.controller;
+
+import com.example.DB.Service.ProjectService;
+import com.example.DB.dto.ProjectDto;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/projects")
+@RequiredArgsConstructor
+public class ProjectController {
+    private final ProjectService projectService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProjectDto createProject(@RequestBody ProjectDto projectDto) {
+        return projectService.createProject(projectDto);
+    }
+
+    @GetMapping("/{id}")
+    public ProjectDto getProject(@PathVariable Long id) {
+        return projectService.getProjectById(id);
+    }
+
+    @GetMapping
+    public List<ProjectDto> getAllProjects() {
+        return projectService.getAllProjects();
+    }
+
+    @GetMapping("/owner/{ownerId}")
+    public List<ProjectDto> getProjectsByOwner(@PathVariable Long ownerId) {
+        return projectService.getProjectsByOwner(ownerId);
+    }
+
+    @PutMapping("/{id}")
+    public ProjectDto updateProject(@PathVariable Long id, @RequestBody ProjectDto projectDto) {
+        return projectService.updateProject(id, projectDto);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteProject(@PathVariable Long id) {
+        projectService.deleteProject(id);
+    }
+}
+```
+### Task Controller
+```java
+package com.example.DB.controller;
+
+import com.example.DB.Service.TaskService;
+import com.example.DB.dto.TaskDto;
+import com.example.DB.entity.Task;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/tasks")
+@RequiredArgsConstructor
+public class TaskController {
+    private final TaskService taskService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public TaskDto createTask(@RequestBody TaskDto taskDto) {
+        return taskService.createTask(taskDto);
+    }
+
+    @GetMapping("/{id}")
+    public TaskDto getTask(@PathVariable Long id) {
+        return taskService.getTaskById(id);
+    }
+
+    @GetMapping("/project/{projectId}")
+    public List<TaskDto> getProjectTasks(@PathVariable Long projectId) {
+        return taskService.getProjectTasks(projectId);
+    }
+
+    @GetMapping("/user/{userId}")
+    public List<TaskDto> getUserTasks(@PathVariable Long userId) {
+        return taskService.getUserTasks(userId);
+    }
+
+    @PatchMapping("/{id}/status")
+    public TaskDto updateTaskStatus(@PathVariable Long id, @RequestBody Task.TaskStatus status) {
+        return taskService.updateTaskStatus(id, status);
+    }
+
+    @PatchMapping("/{id}/assign/{userId}")
+    public TaskDto assignTask(@PathVariable Long id, @PathVariable Long userId) {
+        return taskService.assignTask(id, userId);
+    }
+}
+```
+### Team Repository
+```java
+package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "Team")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Team {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    private List<Member> members = new ArrayList<>();
+
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    private List<Project> projects = new ArrayList<>();
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+
+```
+### Project Repository
+```java
+package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "Project")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Project {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String name;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "ownerId", nullable = false)
+    private User owner;
+
+    @ManyToOne
+    @JoinColumn(name = "teamId", nullable = false)
+    private Team team;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "project")
+    private List<Task> tasks = new ArrayList<>();
+
+    @OneToMany(mappedBy = "project")
+    private List<Artefact> artefacts = new ArrayList<>();
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
+    private List<Grant> grants;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+```
+### Task Repository
+```java
+package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "Task")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Task {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "assignedTo")
+    private User assignedTo;
+
+    @ManyToOne
+    @JoinColumn(name = "projectId", nullable = false)
+    private Project project;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskStatus status = TaskStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskPriority priority = TaskPriority.MEDIUM;
+
+    private LocalDateTime dueDate;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    public enum TaskStatus {
+        PENDING, IN_PROGRESS, COMPLETED, ON_HOLD, CANCELLED
+    }
+
+    public enum TaskPriority {
+        LOW, MEDIUM, HIGH
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+
+
+```
