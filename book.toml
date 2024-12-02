@@ -3,7 +3,7 @@ language = "uk"
 multilingual = true
 src = "./"
 
-authors = ["Max Netyaga \"@maxnetyaga\""]
+authors = ["Yevhenii Butkevych \"@deLordee\""]
 
 title = "Курсова робота з предмету \"Бази даних\": Система управління проєктами"
 

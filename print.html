@@ -156,20 +156,8 @@
                         <h1 id="Курсова-робота-з-предмету-Бази-даних-Система-управління-проєктами"><a class="header" href="#Курсова-робота-з-предмету-Бази-даних-Система-управління-проєктами">Курсова робота з предмету "Бази даних": Система управління проєктами</a></h1>
 <p><em><strong>КПІ | Осінь-зима 2024 | Спеціальність 121 | Група ІМ-34 | Підгрупа #1</strong></em></p>
 <h2 id="Виконали"><a class="header" href="#Виконали">Виконали</a></h2>
-<p><em>студент 2-го курсу, групи ІМ-34</em> <strong>Євген БУТКЕВИЧ</strong><br />
+<p><em>студент 2-го курсу, групи ІМ-34</em> <strong>Євгеній БУТКЕВИЧ</strong><br />
 Telegram: <a href="https://t.me/de_evgenko">@de_evgenko</a></p>
-<p><em>студент 2-го курсу, групи ІМ-34</em> <strong>Микола ІГЛАЙКІН</strong><br />
-Telegram: <a href="https://t.me/niglaykin">@niglaykin</a></p>
-<p><em>студентка 2-го курсу, групи ІМ-34</em> <strong>Карина КОРЧОВА</strong><br />
-Telegram: <a href="https://t.me/arosyri">@arosyri</a></p>
-<p><em>студент 2-го курсу, групи ІМ-34</em> <strong>Максим КРУЛЕВСЬКИЙ</strong><br />
-Telegram: <a href="https://t.me/MaksimkaMalutka">@MaksimkaMalutka</a></p>
-<p><em>студент 2-го курсу, групи ІМ-34</em> <strong>Максим НЕТЯГА</strong><br />
-Telegram: <a href="https://t.me/maxnetyaga">@maxnetyaga</a></p>
-<p><em>студентка 2-го курсу, групи ІМ-34</em> <strong>Вероніка ОСТАПОВА</strong><br />
-Telegram: <a href="https://t.me/VeronikaNuar">@VeronikaNuar</a></p>
-<p><em>студент 2-го курсу, групи ІМ-34</em> <strong>Матвій ШПИРУК</strong><br />
-Telegram: <a href="https://t.me/pqpj5">@pqpj5</a></p>
 <h2 id="Керівник"><a class="header" href="#Керівник">Керівник</a></h2>
 <p><em>доцент кафедри ОТ ФІОТ, к.т.н., доцент</em> <strong>Андрій БОЛДАК</strong></p>
 <p><a href="https://kpi.ua/">НТУУ "КИЇВСЬКИЙ ПОЛІТЕХНІЧНИЙ ІНСТИТУТ імені ІГОРЯ СІКОРСЬКОГО</a></p>
@@ -1961,8 +1949,791 @@ INSERT INTO `Grant` (`projectId`, `userId`) VALUES
 COMMIT;
 </code></pre>
 <h2 id="restfull-сервіс-для-управління-даними"><a class="header" href="#restfull-сервіс-для-управління-даними">RESTfull сервіс для управління даними</a></h2>
+<h2 id="entities"><a class="header" href="#entities">Entities</a></h2>
+<h3 id="team-entity"><a class="header" href="#team-entity">Team Entity</a></h3>
+<pre><code class="language-java">package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "Team")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Team {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    private List&lt;Member&gt; members = new ArrayList&lt;&gt;();
+
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    private List&lt;Project&gt; projects = new ArrayList&lt;&gt;();
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+</code></pre>
+<h3 id="project-entity"><a class="header" href="#project-entity">Project Entity</a></h3>
+<pre><code class="language-java">package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "Project")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Project {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String name;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "ownerId", nullable = false)
+    private User owner;
+
+    @ManyToOne
+    @JoinColumn(name = "teamId", nullable = false)
+    private Team team;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "project")
+    private List&lt;Task&gt; tasks = new ArrayList&lt;&gt;();
+
+    @OneToMany(mappedBy = "project")
+    private List&lt;Artefact&gt; artefacts = new ArrayList&lt;&gt;();
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
+    private List&lt;Grant&gt; grants;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+</code></pre>
+<h3 id="task-entity"><a class="header" href="#task-entity">Task Entity</a></h3>
+<pre><code class="language-java">package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "Task")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Task {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "assignedTo")
+    private User assignedTo;
+
+    @ManyToOne
+    @JoinColumn(name = "projectId", nullable = false)
+    private Project project;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskStatus status = TaskStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskPriority priority = TaskPriority.MEDIUM;
+
+    private LocalDateTime dueDate;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    public enum TaskStatus {
+        PENDING, IN_PROGRESS, COMPLETED, ON_HOLD, CANCELLED
+    }
+
+    public enum TaskPriority {
+        LOW, MEDIUM, HIGH
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+
+</code></pre>
+<h3 id="team-service-implementaion"><a class="header" href="#team-service-implementaion">Team Service Implementaion</a></h3>
+<pre><code class="language-java">package com.example.DB.Service.impl;
+
+import com.example.DB.Service.TeamService;
+import com.example.DB.dto.TeamDto;
+import com.example.DB.entity.Team;
+import com.example.DB.entity.Member;
+import com.example.DB.entity.Project;
+import com.example.DB.repository.TeamRepository;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+@RequiredArgsConstructor
+public class TeamServiceImpl implements TeamService {
+    private final TeamRepository teamRepository;
+
+    public TeamDto createTeam() {
+        Team team = new Team();
+        Team savedTeam = teamRepository.save(team);
+        return convertToDto(savedTeam);
+    }
+
+    public TeamDto getTeamById(Long id) {
+        Team team = teamRepository.findById(id)
+                .orElseThrow(() -&gt; new RuntimeException("Team not found"));
+        return convertToDto(team);
+    }
+
+    public List&lt;TeamDto&gt; getAllTeams() {
+        return teamRepository.findAll().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public List&lt;TeamDto&gt; getTeamsByMember(Long userId) {
+        return teamRepository.findByMembersUserId(userId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public List&lt;TeamDto&gt; getTeamsByProject(Long projectId) {
+        return teamRepository.findByProjectsId(projectId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public void deleteTeam(Long id) {
+        if (!teamRepository.existsById(id)) {
+            throw new RuntimeException("Team not found");
+        }
+        teamRepository.deleteById(id);
+    }
+
+    private TeamDto convertToDto(Team team) {
+        return new TeamDto(
+                team.getId(),
+                team.getCreatedAt(),
+                team.getMembers() != null ?
+                        team.getMembers().stream().map(Member::getId).collect(Collectors.toList()) :
+                        new ArrayList&lt;&gt;(),
+                team.getProjects() != null ?
+                        team.getProjects().stream().map(Project::getId).collect(Collectors.toList()) :
+                        new ArrayList&lt;&gt;()
+        );
+    }
+}
+</code></pre>
+<h3 id="project-service-implementaion"><a class="header" href="#project-service-implementaion">Project Service Implementaion</a></h3>
+<pre><code class="language-java">package com.example.DB.Service.impl;
+
+import com.example.DB.Service.ProjectService;
+import com.example.DB.dto.ProjectDto;
+import com.example.DB.entity.Project;
+import com.example.DB.entity.Team;
+import com.example.DB.entity.User;
+import com.example.DB.entity.Task;
+import com.example.DB.entity.Artefact;
+import com.example.DB.repository.ProjectRepository;
+import com.example.DB.repository.TeamRepository;
+import com.example.DB.repository.UserRepository;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+@RequiredArgsConstructor
+public class ProjectServiceImpl implements ProjectService {
+    private final ProjectRepository projectRepository;
+    private final UserRepository userRepository;
+    private final TeamRepository teamRepository;
+
+    public ProjectDto createProject(ProjectDto projectDto) {
+        Project project = new Project();
+        project.setName(projectDto.getName());
+        project.setDescription(projectDto.getDescription());
+        project.setOwner(userRepository.findById(projectDto.getOwnerId())
+                .orElseThrow(() -&gt; new RuntimeException("Owner not found")));
+        project.setTeam(teamRepository.findById(projectDto.getTeamId())
+                .orElseThrow(() -&gt; new RuntimeException("Team not found")));
+        project.setTasks(new ArrayList&lt;&gt;());
+        project.setArtefacts(new ArrayList&lt;&gt;());
+        project.setCreatedAt(LocalDateTime.now());
+
+        return convertToDto(projectRepository.save(project));
+    }
+
+    public ProjectDto getProjectById(Long id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -&gt; new RuntimeException("Project not found"));
+        return convertToDto(project);
+    }
+
+    public List&lt;ProjectDto&gt; getAllProjects() {
+        return projectRepository.findAll().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public List&lt;ProjectDto&gt; getProjectsByOwner(Long ownerId) {
+        return projectRepository.findByOwnerId(ownerId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public ProjectDto updateProject(Long id, ProjectDto projectDto) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -&gt; new RuntimeException("Project not found"));
+
+        project.setName(projectDto.getName());
+        project.setDescription(projectDto.getDescription());
+
+        Project updatedProject = projectRepository.save(project);
+        return convertToDto(updatedProject);
+    }
+
+    public void deleteProject(Long id) {
+        if (!projectRepository.existsById(id)) {
+            throw new RuntimeException("Project not found");
+        }
+        projectRepository.deleteById(id);
+    }
+
+    private ProjectDto convertToDto(Project project) {
+        return new ProjectDto(
+                project.getId(),
+                project.getName(),
+                project.getDescription(),
+                project.getOwner().getId(),
+                project.getTeam().getId(),
+                project.getCreatedAt(),
+                project.getTasks().stream().map(Task::getId).collect(Collectors.toList()),
+                project.getArtefacts().stream().map(Artefact::getId).collect(Collectors.toList())
+        );
+    }
+}
+</code></pre>
+<h3 id="task-service-implementaion"><a class="header" href="#task-service-implementaion">Task Service Implementaion</a></h3>
+<pre><code class="language-java">package com.example.DB.Service.impl;
+
+import com.example.DB.Service.TaskService;
+import com.example.DB.dto.TaskDto;
+import com.example.DB.entity.Project;
+import com.example.DB.entity.Task;
+import com.example.DB.entity.User;
+import com.example.DB.repository.ProjectRepository;
+import com.example.DB.repository.TaskRepository;
+import com.example.DB.repository.UserRepository;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+@RequiredArgsConstructor
+public class TaskServiceImpl implements TaskService {
+    private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
+
+    public TaskDto createTask(TaskDto taskDto) {
+        Project project = projectRepository.findById(taskDto.getProjectId())
+                .orElseThrow(() -&gt; new RuntimeException("Project not found"));
+
+        Task task = new Task();
+        task.setTitle(taskDto.getTitle());
+        task.setDescription(taskDto.getDescription());
+        task.setProject(project);
+        task.setStatus(taskDto.getStatus());
+        task.setPriority(taskDto.getPriority());
+        task.setDueDate(taskDto.getDueDate());
+
+        if (taskDto.getAssignedToId() != null) {
+            User assignee = userRepository.findById(taskDto.getAssignedToId())
+                    .orElseThrow(() -&gt; new RuntimeException("Assignee not found"));
+            task.setAssignedTo(assignee);
+        }
+
+        Task savedTask = taskRepository.save(task);
+        return convertToDto(savedTask);
+    }
+
+    public TaskDto getTaskById(Long id) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -&gt; new RuntimeException("Task not found"));
+        return convertToDto(task);
+    }
+
+    public List&lt;TaskDto&gt; getProjectTasks(Long projectId) {
+        return taskRepository.findByProjectId(projectId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public List&lt;TaskDto&gt; getUserTasks(Long userId) {
+        return taskRepository.findByAssignedToId(userId).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public TaskDto updateTaskStatus(Long id, Task.TaskStatus status) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -&gt; new RuntimeException("Task not found"));
+        task.setStatus(status);
+        return convertToDto(taskRepository.save(task));
+    }
+
+    public TaskDto assignTask(Long id, Long userId) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -&gt; new RuntimeException("Task not found"));
+        User assignee = userRepository.findById(userId)
+                .orElseThrow(() -&gt; new RuntimeException("User not found"));
+
+        task.setAssignedTo(assignee);
+        return convertToDto(taskRepository.save(task));
+    }
+
+    private TaskDto convertToDto(Task task) {
+        return new TaskDto(
+                task.getId(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getAssignedTo() != null ? task.getAssignedTo().getId() : null,
+                task.getProject().getId(),
+                task.getStatus(),
+                task.getPriority(),
+                task.getDueDate(),
+                task.getCreatedAt()
+        );
+    }
+}
+</code></pre>
+<h3 id="team-controller"><a class="header" href="#team-controller">Team Controller</a></h3>
+<pre><code class="language-java">package com.example.DB.controller;
+
+import com.example.DB.Service.TeamService;
+import com.example.DB.dto.TeamDto;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/teams")
+@RequiredArgsConstructor
+public class TeamController {
+    private final TeamService teamService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public TeamDto createTeam() {
+        return teamService.createTeam();
+    }
+
+    @GetMapping("/{id}")
+    public TeamDto getTeam(@PathVariable Long id) {
+        return teamService.getTeamById(id);
+    }
+
+    @GetMapping
+    public List&lt;TeamDto&gt; getAllTeams() {
+        return teamService.getAllTeams();
+    }
+
+    @GetMapping("/member/{userId}")
+    public List&lt;TeamDto&gt; getTeamsByMember(@PathVariable Long userId) {
+        return teamService.getTeamsByMember(userId);
+    }
+
+    @GetMapping("/project/{projectId}")
+    public List&lt;TeamDto&gt; getTeamsByProject(@PathVariable Long projectId) {
+        return teamService.getTeamsByProject(projectId);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteTeam(@PathVariable Long id) {
+        teamService.deleteTeam(id);
+    }
+}
+
+</code></pre>
+<h3 id="project-controller"><a class="header" href="#project-controller">Project Controller</a></h3>
+<pre><code class="language-java">package com.example.DB.controller;
+
+import com.example.DB.Service.ProjectService;
+import com.example.DB.dto.ProjectDto;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/projects")
+@RequiredArgsConstructor
+public class ProjectController {
+    private final ProjectService projectService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProjectDto createProject(@RequestBody ProjectDto projectDto) {
+        return projectService.createProject(projectDto);
+    }
+
+    @GetMapping("/{id}")
+    public ProjectDto getProject(@PathVariable Long id) {
+        return projectService.getProjectById(id);
+    }
+
+    @GetMapping
+    public List&lt;ProjectDto&gt; getAllProjects() {
+        return projectService.getAllProjects();
+    }
+
+    @GetMapping("/owner/{ownerId}")
+    public List&lt;ProjectDto&gt; getProjectsByOwner(@PathVariable Long ownerId) {
+        return projectService.getProjectsByOwner(ownerId);
+    }
+
+    @PutMapping("/{id}")
+    public ProjectDto updateProject(@PathVariable Long id, @RequestBody ProjectDto projectDto) {
+        return projectService.updateProject(id, projectDto);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteProject(@PathVariable Long id) {
+        projectService.deleteProject(id);
+    }
+}
+</code></pre>
+<h3 id="task-controller"><a class="header" href="#task-controller">Task Controller</a></h3>
+<pre><code class="language-java">package com.example.DB.controller;
+
+import com.example.DB.Service.TaskService;
+import com.example.DB.dto.TaskDto;
+import com.example.DB.entity.Task;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/tasks")
+@RequiredArgsConstructor
+public class TaskController {
+    private final TaskService taskService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public TaskDto createTask(@RequestBody TaskDto taskDto) {
+        return taskService.createTask(taskDto);
+    }
+
+    @GetMapping("/{id}")
+    public TaskDto getTask(@PathVariable Long id) {
+        return taskService.getTaskById(id);
+    }
+
+    @GetMapping("/project/{projectId}")
+    public List&lt;TaskDto&gt; getProjectTasks(@PathVariable Long projectId) {
+        return taskService.getProjectTasks(projectId);
+    }
+
+    @GetMapping("/user/{userId}")
+    public List&lt;TaskDto&gt; getUserTasks(@PathVariable Long userId) {
+        return taskService.getUserTasks(userId);
+    }
+
+    @PatchMapping("/{id}/status")
+    public TaskDto updateTaskStatus(@PathVariable Long id, @RequestBody Task.TaskStatus status) {
+        return taskService.updateTaskStatus(id, status);
+    }
+
+    @PatchMapping("/{id}/assign/{userId}")
+    public TaskDto assignTask(@PathVariable Long id, @PathVariable Long userId) {
+        return taskService.assignTask(id, userId);
+    }
+}
+</code></pre>
+<h3 id="team-repository"><a class="header" href="#team-repository">Team Repository</a></h3>
+<pre><code class="language-java">package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "Team")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Team {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    private List&lt;Member&gt; members = new ArrayList&lt;&gt;();
+
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    private List&lt;Project&gt; projects = new ArrayList&lt;&gt;();
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+
+</code></pre>
+<h3 id="project-repository"><a class="header" href="#project-repository">Project Repository</a></h3>
+<pre><code class="language-java">package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "Project")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Project {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String name;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "ownerId", nullable = false)
+    private User owner;
+
+    @ManyToOne
+    @JoinColumn(name = "teamId", nullable = false)
+    private Team team;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "project")
+    private List&lt;Task&gt; tasks = new ArrayList&lt;&gt;();
+
+    @OneToMany(mappedBy = "project")
+    private List&lt;Artefact&gt; artefacts = new ArrayList&lt;&gt;();
+
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
+    private List&lt;Grant&gt; grants;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+</code></pre>
+<h3 id="task-repository"><a class="header" href="#task-repository">Task Repository</a></h3>
+<pre><code class="language-java">package com.example.DB.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "Task")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Task {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "assignedTo")
+    private User assignedTo;
+
+    @ManyToOne
+    @JoinColumn(name = "projectId", nullable = false)
+    private Project project;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskStatus status = TaskStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TaskPriority priority = TaskPriority.MEDIUM;
+
+    private LocalDateTime dueDate;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    public enum TaskStatus {
+        PENDING, IN_PROGRESS, COMPLETED, ON_HOLD, CANCELLED
+    }
+
+    public enum TaskPriority {
+        LOW, MEDIUM, HIGH
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+}
+
+
+</code></pre>
+<h3 id="main-application"><a class="header" href="#main-application">Main application</a></h3>
+<pre><code class="language-java">package com.example.DB;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class DbApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(DbApplication.class, args);
+	}
+
+}
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="Тестування-працездатності-системи"><a class="header" href="#Тестування-працездатності-системи">Тестування працездатності системи</a></h1>
-<p><em>В цьому розділі необхідно вказати засоби тестування, навести вихідні коди тестів та результати тестування.</em></p>
+<h2 id="Основні-сценарії-для-користувача"><a class="header" href="#Основні-сценарії-для-користувача">Основні сценарії для користувача</a></h2>
+<h3 id="get-apiusers"><a class="header" href="#get-apiusers">GET /api/users</a></h3>
+<p><img src="https://github.com/user-attachments/assets/1c06e7c4-a800-46c3-b89f-8b166fc6a369" alt="GET" /></p>
+<h3 id="get-apiusersid"><a class="header" href="#get-apiusersid">GET /api/users/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/37ffe13a-358d-4e35-b1d2-8b0d0757aaac" alt="GET" /></p>
+<h3 id="put-apiusersid"><a class="header" href="#put-apiusersid">PUT /api/users/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/2e1466e3-8d5d-4c37-88ae-56d2af769033" alt="PUT" /></p>
+<h3 id="post-users"><a class="header" href="#post-users">POST /users</a></h3>
+<p><img src="https://github.com/user-attachments/assets/39b36181-cfa8-4ecd-a131-07d6941117b1" alt="POST" /></p>
+<h2 id="Основні-сценарії-для-команд"><a class="header" href="#Основні-сценарії-для-команд">Основні сценарії для команд</a></h2>
+<h3 id="get-apiteams"><a class="header" href="#get-apiteams">GET /api/teams</a></h3>
+<p><img src="https://github.com/user-attachments/assets/1200e23d-ec86-4756-9b61-6e6ab284016f" alt="GET" /></p>
+<h3 id="get-apiteamsid"><a class="header" href="#get-apiteamsid">GET /api/teams/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/65434def-84f8-4856-a513-713a4288c794" alt="GET" /></p>
+<h3 id="get-apiteamsprojectid"><a class="header" href="#get-apiteamsprojectid">GET /api/teams/project/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/a66263a5-022e-4d94-b6fc-6b8eb6b19830" alt="GET" /></p>
+<h3 id="get-apiteamsmemberid"><a class="header" href="#get-apiteamsmemberid">GET api/teams/member/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/8f6f356e-d552-4bd9-9e2b-16a7cd971cc8" alt="GET" /></p>
+<h3 id="post-apiteams"><a class="header" href="#post-apiteams">POST /api/teams</a></h3>
+<p><img src="https://github.com/user-attachments/assets/358d71e3-6a9f-486d-abea-e0f9de442a95" alt="POST" /></p>
+<h3 id="delete-apiteamsid"><a class="header" href="#delete-apiteamsid">DELETE /api/teams/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/dcf0496e-4a57-49d7-961a-5016fb266094" alt="DELETE" /></p>
+<h2 id="Основні-сценарії-для-ролей"><a class="header" href="#Основні-сценарії-для-ролей">Основні сценарії для ролей</a></h2>
+<h3 id="get-apiroles"><a class="header" href="#get-apiroles">GET /api/roles</a></h3>
+<p><img src="https://github.com/user-attachments/assets/30ef7461-fe7a-4c1b-9c95-2112f2686032" alt=" GET" /></p>
+<h3 id="get-apirolesid"><a class="header" href="#get-apirolesid">GET /api/roles/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/d28773b2-9f39-40f1-91d0-e5c638e584b1" alt=" GET" /></p>
+<h3 id="post-apiroles"><a class="header" href="#post-apiroles">POST /api/roles</a></h3>
+<p><img src="https://github.com/user-attachments/assets/ab78a0ec-ebfb-4f1d-9d6f-8401207b078a" alt="POST" /></p>
+<h3 id="put-apirolesid"><a class="header" href="#put-apirolesid">PUT api/roles/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/45df75fe-b2dc-443f-b027-19de0f4c2d93" alt="PUT" /></p>
+<h3 id="delete-apirolesid"><a class="header" href="#delete-apirolesid">DELETE /api/roles/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/8c670b70-4c50-4c97-876c-f2bd61b3cba2" alt="DELETE" /></p>
+<h2 id="Основні-сценарії-для-проєкту"><a class="header" href="#Основні-сценарії-для-проєкту">Основні сценарії для проєкту</a></h2>
+<h3 id="get-apiprojects"><a class="header" href="#get-apiprojects">GET /api/projects</a></h3>
+<p><img src="https://github.com/user-attachments/assets/04fb4423-8b62-4f8c-8c24-e40388631821" alt="GET" /></p>
+<h3 id="get-apiprojectsid"><a class="header" href="#get-apiprojectsid">GET /api/projects/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/93edc7a5-4b94-4dc6-8234-5b03363e1cc1" alt=" GET" /></p>
+<h3 id="post-apiprojects"><a class="header" href="#post-apiprojects">POST /api/projects</a></h3>
+<p><img src="https://github.com/user-attachments/assets/1a1737b7-e744-4c0d-81c3-748103ba650d" alt="POST" /></p>
+<h3 id="put-apiprojectsid"><a class="header" href="#put-apiprojectsid">PUT api/projects/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/13b0e5ff-187c-4890-a884-bafef9a91877" alt="PUT" /></p>
+<h2 id="Основні-сценарії-для-таску"><a class="header" href="#Основні-сценарії-для-таску">Основні сценарії для таску</a></h2>
+<h3 id="get-apitasksid"><a class="header" href="#get-apitasksid">GET /api/tasks/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/482fd1b2-e6e0-4f59-9902-869add11bd9d" alt=" GET" /></p>
+<h3 id="get-apitasksprojectsid"><a class="header" href="#get-apitasksprojectsid">GET /api/tasks/projects/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/9335716a-24bc-48aa-8cab-840ac4689a39" alt="GET" /></p>
+<h3 id="get-apitasksuserid"><a class="header" href="#get-apitasksuserid">GET /api/tasks/user/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/73eaaed2-16c0-4f24-8972-1ae30d4efb9e" alt="GET" /></p>
+<h3 id="post-apitasks"><a class="header" href="#post-apitasks">POST api/tasks</a></h3>
+<p><img src="https://github.com/user-attachments/assets/b3ce7ee2-5ac1-4e88-9933-721b1644985e" alt="POST" /></p>
+<h3 id="patch-apitasksidstatus"><a class="header" href="#patch-apitasksidstatus">PATCH /api/tasks/:id/status</a></h3>
+<p><img src="https://github.com/user-attachments/assets/4bff52f6-d3dc-4e41-bf18-36ce9f157871" alt="PATCH" /></p>
+<h3 id="patch-apitasksidassignid"><a class="header" href="#patch-apitasksidassignid">PATCH api/tasks/:id/assign/:id</a></h3>
+<p><img src="https://github.com/user-attachments/assets/31d9db9f-6ca5-410a-8a27-3d06ad09f77b" alt="PATCH" /></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="Висновки-1"><a class="header" href="#Висновки-1">Висновки</a></h1>
 <p>У висновках наводять оцінку отриманих результатів, можливі галузі його використання. Висновки повинні містити в собі коротку узагальнену оцінку результатів розробки, у
 тому числі і з погляду на їх технічно-економічну ефективність. Необхідно порівняти
